@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { getMemberById, getMembers, getProductById, getProducts } from './api.js'
-import { MemberDetail, MemberList } from './MemberViews.jsx'
-import { ProductDetail, ProductList } from './ProductViews.jsx'
+import { createMember, createProduct, getMemberById, getMembers, getProductById, getProducts } from './api.js'
+import { HashLink } from './HashLink.jsx'
+import { MemberCreate, MemberDetail, MemberList } from './MemberViews.jsx'
+import { ProductCreate, ProductDetail, ProductList } from './ProductViews.jsx'
 import './App.css'
 
 function parseHash(hash) {
@@ -26,6 +27,7 @@ export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -59,40 +61,64 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [resource, id])
+  }, [resource, id, reload])
 
   return (
     <div className="app">
       <header>
         <nav>
-          <a href="#/members">Members</a>
-          <a href="#/products">Products</a>
+          <HashLink to="#/members">Members</HashLink>
+          <HashLink to="#/products">Products</HashLink>
         </nav>
       </header>
       <main>
         {error ? <p className="error">{error}</p> : null}
         {loading ? <p>Loading…</p> : null}
-        {resource === 'members' && id && data ? (
+        {resource === 'members' && id && data && !Array.isArray(data) ? (
           <>
             <p>
-              <a href="#/members">Back to members</a>
+              <HashLink to="#/members">Back to members</HashLink>
             </p>
             <MemberDetail member={data} />
           </>
         ) : null}
-        {resource === 'members' && !id && data ? (
-          <MemberList members={data} />
+        {resource === 'members' && !id && Array.isArray(data) ? (
+          <>
+            <MemberCreate
+              onCreate={async (body) => {
+                try {
+                  await createMember(body)
+                  setReload((n) => n + 1)
+                } catch (err) {
+                  setError(err.message ?? String(err))
+                }
+              }}
+            />
+            <MemberList members={data} />
+          </>
         ) : null}
-        {resource === 'products' && id && data ? (
+        {resource === 'products' && id && data && !Array.isArray(data) ? (
           <>
             <p>
-              <a href="#/products">Back to products</a>
+              <HashLink to="#/products">Back to products</HashLink>
             </p>
             <ProductDetail product={data} />
           </>
         ) : null}
-        {resource === 'products' && !id && data ? (
-          <ProductList products={data} />
+        {resource === 'products' && !id && Array.isArray(data) ? (
+          <>
+            <ProductCreate
+              onCreate={async (body) => {
+                try {
+                  await createProduct(body)
+                  setReload((n) => n + 1)
+                } catch (err) {
+                  setError(err.message ?? String(err))
+                }
+              }}
+            />
+            <ProductList products={data} />
+          </>
         ) : null}
         {!resource ? (
           <section>

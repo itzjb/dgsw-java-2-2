@@ -9,10 +9,15 @@ const products = [
 ]
 
 function mockApi() {
-  globalThis.fetch = vi.fn(async (url) => {
+  globalThis.fetch = vi.fn(async (url, init = {}) => {
     const path = String(url)
+    const method = init.method ?? 'GET'
     let payload
-    if (path === 'members/1' || path.endsWith('/members/1')) payload = members[0]
+    if (method === 'POST' && (path === 'members' || path.endsWith('/members'))) {
+      payload = { id: 2, name: 'string', email: 'string' }
+    } else if (method === 'POST' && (path === '/products' || path.endsWith('/products'))) {
+      payload = { id: 2, name: 'string', description: 'string', price: 0 }
+    } else if (path === 'members/1' || path.endsWith('/members/1')) payload = members[0]
     else if (path === 'members' || path.endsWith('/members')) payload = members
     else if (path === '/products/1' || path.endsWith('/products/1')) payload = products[0]
     else if (path === '/products' || path.endsWith('/products')) payload = products
@@ -64,6 +69,21 @@ describe('App opens members and products views from API JSON', () => {
     expect(screen.getByText('1@email.com')).toBeInTheDocument()
   })
 
+  it('shows products after opening a member detail first', async () => {
+    mockApi()
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: /members/i }))
+    await screen.findByText('name1')
+    await user.click(screen.getByRole('link', { name: /name1/i }))
+    await screen.findByRole('heading', { name: 'Member' })
+    await user.click(screen.getByRole('link', { name: /products/i }))
+
+    expect(await screen.findByText('product1')).toBeInTheDocument()
+    expect(screen.getByText('1000')).toBeInTheDocument()
+  })
+
   it('shows product-by-id fields after opening a product from the list', async () => {
     mockApi()
     const user = userEvent.setup()
@@ -76,5 +96,44 @@ describe('App opens members and products views from API JSON', () => {
     expect(await screen.findByRole('heading', { name: 'Product' })).toBeInTheDocument()
     expect(screen.getByText('product1')).toBeInTheDocument()
     expect(screen.getByText('1000')).toBeInTheDocument()
+  })
+
+  it('POSTs a member with name and email from the members form', async () => {
+    mockApi()
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: /members/i }))
+    await screen.findByText('name1')
+    await user.type(screen.getByLabelText('name'), 'string')
+    await user.type(screen.getByLabelText('email'), 'string')
+    await user.click(screen.getByRole('button', { name: /create/i }))
+
+    const post = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(post).toBeTruthy()
+    expect(String(post[0])).toMatch(/members$/)
+    expect(JSON.parse(post[1].body)).toEqual({ name: 'string', email: 'string' })
+  })
+
+  it('POSTs a product with name, description, and price from the products form', async () => {
+    mockApi()
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: /products/i }))
+    await screen.findByText('product1')
+    await user.type(screen.getByLabelText('name'), 'string')
+    await user.type(screen.getByLabelText('description'), 'string')
+    await user.type(screen.getByLabelText('price'), '0')
+    await user.click(screen.getByRole('button', { name: /create/i }))
+
+    const post = fetch.mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(post).toBeTruthy()
+    expect(String(post[0])).toMatch(/products$/)
+    expect(JSON.parse(post[1].body)).toEqual({
+      name: 'string',
+      description: 'string',
+      price: 0,
+    })
   })
 })

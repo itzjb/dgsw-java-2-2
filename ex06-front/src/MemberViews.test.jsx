@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { MemberDetail, MemberList } from './MemberViews.jsx'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import { MemberCreate, MemberDetail, MemberList } from './MemberViews.jsx'
 
 const members = [
   { id: 1, name: 'name1', email: '1@email.com' },
@@ -25,5 +26,17 @@ describe('Member views render entity fields from GET-shaped JSON', () => {
     expect(screen.getByText('1')).toBeInTheDocument()
     expect(screen.getByText('name1')).toBeInTheDocument()
     expect(screen.getByText('1@email.com')).toBeInTheDocument()
+  })
+
+  it('create form submits name and email', async () => {
+    const onCreate = vi.fn()
+    const user = userEvent.setup()
+    render(<MemberCreate onCreate={onCreate} />)
+
+    await user.type(screen.getByLabelText('name'), 'string')
+    await user.type(screen.getByLabelText('email'), 'string')
+    await user.click(screen.getByRole('button', { name: /create/i }))
+
+    expect(onCreate).toHaveBeenCalledWith({ name: 'string', email: 'string' })
   })
 })
